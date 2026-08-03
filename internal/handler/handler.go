@@ -5,6 +5,14 @@ import (
 	"net/http"
 )
 
-func TaskHandler(w http.ResponseWriter, r *http.Request) {
+type TaskHandler struct {
+	http.Handler
+}
+
+func NewTaskHandler() *TaskHandler {
+	return &TaskHandler{}
+}
+
+func (t *TaskHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Hello World!\n")
 }
