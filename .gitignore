@@ -1,0 +1,28 @@
+# Compiled binaries and build output
+/bin/
+/go-task-api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test binaries, profiles, and coverage reports
+*.test
+*.prof
+coverage.out
+
+# Temporary files created while developing
+/tmp/
+*.tmp
+
+# Local environment values may contain secrets or machine-specific settings
+.env
+.env.*
+!.env.example
+
+# Operating-system and editor metadata
+.DS_Store
+.idea/
+.vscode/
+*.swp
