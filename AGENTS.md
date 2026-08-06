@@ -34,7 +34,7 @@ This is a learning project. When assisting, explain the relevant concept, break 
 
 ## Target API Specification
 
-Treat `specs/go-task-api-sqlite-guide.html` as the detailed implementation guide and source of truth for the finished API. Build the core version in its numbered phases before attempting optional extensions.
+Treat the documentation in `specs/` as the detailed implementation guide and source of truth for the finished API. Build the core version in its numbered phases before attempting optional extensions.
 
 - Use Go 1.22+ and `net/http` method-aware routes, with no web framework.
 - Organize the application into `internal/model`, `internal/repository`, `internal/service`, and `internal/handler`. Handlers own HTTP concerns, services own validation and business rules, repositories own SQL and database-error translation, and `main` owns configuration, wiring, and lifecycle.
