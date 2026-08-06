@@ -31,3 +31,18 @@ Git history is not available in this working directory, so no existing conventio
 ## Learning-Focused Contributions
 
 This is a learning project. When assisting, explain the relevant concept, break work into small steps, and let the learner implement meaningful changes. Prefer targeted hints and code review over replacing whole files unless explicitly requested.
+
+## Target API Specification
+
+Treat `specs/go-task-api-sqlite-guide.html` as the detailed implementation guide and source of truth for the finished API. Build the core version in its numbered phases before attempting optional extensions.
+
+- Use Go 1.22+ and `net/http` method-aware routes, with no web framework.
+- Organize the application into `internal/model`, `internal/repository`, `internal/service`, and `internal/handler`. Handlers own HTTP concerns, services own validation and business rules, repositories own SQL and database-error translation, and `main` owns configuration, wiring, and lifecycle.
+- Pass `context.Context` through HTTP, service, and repository boundaries. Define the repository interface in the consuming `service` package and inject dependencies through constructors.
+- Persist tasks in SQLite through `database/sql` and the pure-Go `modernc.org/sqlite` driver. Open one shared database in `main`, ping at startup, set `SetMaxOpenConns(1)`, initialize the schema automatically, and close it at shutdown.
+- Parameterize all SQL with `?`, select explicit columns (never `SELECT *`), order lists by ID, close and check query rows, and translate `sql.ErrNoRows` or zero affected rows into a domain not-found error.
+- A task has `id`, `title`, `description`, `completed`, `created_at`, and `updated_at`. Keep client-writable input separate from stored output. Trim titles and require 1-120 characters; descriptions are optional.
+- Implement `GET /tasks`, `GET /tasks/{id}`, `POST /tasks`, `PUT /tasks/{id}`, `DELETE /tasks/{id}`, and database-aware `GET /health`. Success codes are respectively 200, 200, 201, 200, 204, and 200; health returns 503 when the database is unavailable.
+- JSON errors always use `{"error":"..."}`. JSON responses use `Content-Type: application/json`. Reject invalid positive IDs and malformed or extra request JSON with 400, validation failures with 422, missing tasks with 404, and unexpected failures with 500.
+- Use a fake repository for service tests, `httptest` for handlers, and a real SQLite file under `t.TempDir()` for repository integration tests. Cover each endpoint's happy path and at least one failure path, then verify with `go test -race -cover ./...`.
+- Final polish includes server timeouts, request logging (method, path, status, duration), graceful SIGINT/SIGTERM shutdown using a fresh timeout context, environment-configurable listen/database paths with local defaults, SQLite files in `.gitignore`, and a runnable README.

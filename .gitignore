@@ -26,3 +26,6 @@ coverage.out
 .idea/
 .vscode/
 *.swp
+
+# Spec
+/specs/
