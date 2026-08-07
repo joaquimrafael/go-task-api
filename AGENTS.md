@@ -32,6 +32,14 @@ Git history is not available in this working directory, so no existing conventio
 
 This is a learning project. When assisting, explain the relevant concept, break work into small steps, and let the learner implement meaningful changes. Prefer targeted hints and code review over replacing whole files unless explicitly requested.
 
+## Current Implementation Progress
+
+- Phases 0-2 are complete. The task model exists, and `OpenSQLite` registers the pure-Go SQLite driver, limits the pool to one connection, verifies startup access with a timeout, and initializes the `tasks` schema.
+- `cmd/api/main.go` opens `tasks.db`, closes it on exit, and currently serves on port `8080`.
+- The current HTTP handler is still a placeholder that returns `Hello World!` for every path; task routes and database-backed handler behavior have not been implemented.
+- `go test ./...` passes, although no automated tests exist yet.
+- Resume with phase 3 in `specs/go-task-api-sqlite-guide.html`: implement and verify the SQLite task repository methods.
+
 ## Target API Specification
 
 Treat the documentation in `specs/` as the detailed implementation guide and source of truth for the finished API. Build the core version in its numbered phases before attempting optional extensions.
