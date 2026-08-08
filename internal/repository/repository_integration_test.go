@@ -9,7 +9,10 @@ import (
 
 	"github.com/joaquimrafael/go-task-api/internal/model"
 	"github.com/joaquimrafael/go-task-api/internal/repository"
+	"github.com/joaquimrafael/go-task-api/internal/service"
 )
+
+var _ service.TaskRepository = (*repository.SQLiteTaskRepository)(nil)
 
 func newTestRepository(t *testing.T) *repository.SQLiteTaskRepository {
 	t.Helper()
