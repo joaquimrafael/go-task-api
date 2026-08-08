@@ -34,11 +34,12 @@ This is a learning project. When assisting, explain the relevant concept, break 
 
 ## Current Implementation Progress
 
-- Phases 0-2 are complete. The task model exists, and `OpenSQLite` registers the pure-Go SQLite driver, limits the pool to one connection, verifies startup access with a timeout, and initializes the `tasks` schema.
+- Phases 0-3 are complete. The task model exists, and `OpenSQLite` registers the pure-Go SQLite driver, limits the pool to one connection, verifies startup access with a timeout, and initializes the `tasks` schema.
+- `SQLiteTaskRepository` implements create, list, retrieve, update, and delete with context-aware, parameterized SQL and not-found translation.
 - `cmd/api/main.go` opens `tasks.db`, closes it on exit, and currently serves on port `8080`.
 - The current HTTP handler is still a placeholder that returns `Hello World!` for every path; task routes and database-backed handler behavior have not been implemented.
-- `go test ./...` passes, although no automated tests exist yet.
-- Resume with phase 3 in `specs/go-task-api-sqlite-guide.html`: implement and verify the SQLite task repository methods.
+- Repository integration tests use temporary SQLite files and cover initialization, CRUD success and failure paths, ordering, constraints, and canceled contexts. `go test -race -cover ./internal/repository` passes with 88.4% statement coverage.
+- Resume with phase 4 in `specs/go-task-api-sqlite-guide.html`: add the service, its repository interface, validation, and fake-repository unit tests.
 
 ## Target API Specification
 
