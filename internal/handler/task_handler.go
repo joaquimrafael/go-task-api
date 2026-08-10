@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/joaquimrafael/go-task-api/internal/model"
 	"github.com/joaquimrafael/go-task-api/internal/service"
@@ -25,10 +24,6 @@ type TaskService interface {
 	Delete(ctx context.Context, id int64) error
 }
 
-type DatabasePinger interface {
-	PingContext(ctx context.Context) error
-}
-
 func writeJSON(w http.ResponseWriter, status int, value any) error {
 	w.Header().Set("Content-Type", jsonContentType)
 	w.WriteHeader(status)
@@ -44,34 +39,6 @@ func writeJSONError(w http.ResponseWriter, status int, message string) error {
 	return writeJSON(w, status, errorResponse{
 		Error: message,
 	})
-}
-
-type healthResponse struct {
-	Status string `json:"status"`
-}
-
-func NewHealthHandler(database DatabasePinger) (http.HandlerFunc, error) {
-	if database == nil {
-		return nil, fmt.Errorf("database must not be nil")
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-
-		if err := database.PingContext(ctx); err != nil {
-			_ = writeJSONError(
-				w,
-				http.StatusServiceUnavailable,
-				"database unavailable",
-			)
-			return
-		}
-
-		_ = writeJSON(w, http.StatusOK, healthResponse{
-			Status: "ok",
-		})
-	}, nil
 }
 
 var _ TaskService = (*service.TaskService)(nil)
