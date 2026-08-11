@@ -44,6 +44,7 @@ This is a learning project. When assisting, explain the relevant concept, break 
 - Repository integration tests use temporary SQLite files and cover initialization, CRUD success and failure paths, ordering, constraints, and canceled contexts. `go test -race -cover ./internal/repository` passes with 88.4% statement coverage. Service and handler tests are intentionally deferred until the testing phase.
 - `go test ./...` passes. There are not yet automated service or handler tests.
 - Resume with phase 8 in `specs/go-task-api-sqlite-guide.html`: add table-driven service tests with a fake repository and handler tests with `httptest`, covering each endpoint's happy path and representative 400/404/422/500 failures.
+- Optional TODO: document the application with short Go doc comments for packages and exported identifiers, focusing on purpose or behavior that is not already obvious from the code.
 
 ## Target API Specification
 
