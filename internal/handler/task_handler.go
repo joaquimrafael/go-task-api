@@ -108,9 +108,8 @@ func (th *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (th *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	pathValue := r.PathValue("id")
-	id, err := strconv.ParseInt(pathValue, 10, 64)
-	if err != nil || id <= 0 {
+	id, err := parseTaskID(r)
+	if err != nil {
 		_ = writeJSONError(
 			w,
 			http.StatusBadRequest,
@@ -139,6 +138,68 @@ func (th *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	_ = writeJSON(w, http.StatusOK, task)
 
+}
+
+func (th *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	id, err := parseTaskID(r)
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"invalid task id",
+		)
+		return
+	}
+
+	var input model.TaskInput
+
+	err = decodeBody(r.Body, &input)
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"could not decode body",
+		)
+		return
+	}
+
+	task, err := th.service.Update(r.Context(), id, input)
+	if errors.Is(err, model.ErrInvalidTask) {
+		_ = writeJSONError(
+			w,
+			http.StatusUnprocessableEntity,
+			"unprocessable entity",
+		)
+		return
+	}
+	if errors.Is(err, model.ErrTaskNotFound) {
+		_ = writeJSONError(
+			w,
+			http.StatusNotFound,
+			"task not found",
+		)
+		return
+	}
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+		return
+	}
+
+	_ = writeJSON(w, http.StatusOK, task)
+}
+
+func parseTaskID(r *http.Request) (int64, error) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		return 0, errors.New("invalid task id")
+	}
+	return id, nil
 }
 
 func decodeBody(r io.Reader, input *model.TaskInput) error {
