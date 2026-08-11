@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/joaquimrafael/go-task-api/internal/model"
-	"github.com/joaquimrafael/go-task-api/internal/service"
 )
 
 const jsonContentType = "application/json"
@@ -44,8 +43,6 @@ func writeJSONError(w http.ResponseWriter, status int, message string) error {
 	})
 }
 
-var _ TaskService = (*service.TaskService)(nil)
-
 type TaskHandler struct {
 	service TaskService
 }
@@ -72,11 +69,9 @@ func (th *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (th *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
 	var input model.TaskInput
 
-	err := decodeBody(r.Body, &input)
+	err := decodeTaskInput(r.Body, &input)
 	if err != nil {
 		_ = writeJSONError(
 			w,
@@ -87,20 +82,8 @@ func (th *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task, err := th.service.Create(r.Context(), input)
-	if errors.Is(err, model.ErrInvalidTask) {
-		_ = writeJSONError(
-			w,
-			http.StatusUnprocessableEntity,
-			"unprocessable entity",
-		)
-		return
-	}
 	if err != nil {
-		_ = writeJSONError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
-		)
+		writeTaskServiceError(w, err)
 		return
 	}
 
@@ -119,20 +102,8 @@ func (th *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task, err := th.service.GetByID(r.Context(), id)
-	if errors.Is(err, model.ErrTaskNotFound) {
-		_ = writeJSONError(
-			w,
-			http.StatusNotFound,
-			"task not found",
-		)
-		return
-	}
 	if err != nil {
-		_ = writeJSONError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
-		)
+		writeTaskServiceError(w, err)
 		return
 	}
 
@@ -141,8 +112,6 @@ func (th *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (th *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
 	id, err := parseTaskID(r)
 	if err != nil {
 		_ = writeJSONError(
@@ -155,7 +124,7 @@ func (th *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var input model.TaskInput
 
-	err = decodeBody(r.Body, &input)
+	err = decodeTaskInput(r.Body, &input)
 	if err != nil {
 		_ = writeJSONError(
 			w,
@@ -166,28 +135,8 @@ func (th *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	task, err := th.service.Update(r.Context(), id, input)
-	if errors.Is(err, model.ErrInvalidTask) {
-		_ = writeJSONError(
-			w,
-			http.StatusUnprocessableEntity,
-			"unprocessable entity",
-		)
-		return
-	}
-	if errors.Is(err, model.ErrTaskNotFound) {
-		_ = writeJSONError(
-			w,
-			http.StatusNotFound,
-			"task not found",
-		)
-		return
-	}
 	if err != nil {
-		_ = writeJSONError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
-		)
+		writeTaskServiceError(w, err)
 		return
 	}
 
@@ -206,20 +155,8 @@ func (th *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = th.service.Delete(r.Context(), id)
-	if errors.Is(err, model.ErrTaskNotFound) {
-		_ = writeJSONError(
-			w,
-			http.StatusNotFound,
-			"task not found",
-		)
-		return
-	}
 	if err != nil {
-		_ = writeJSONError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
-		)
+		writeTaskServiceError(w, err)
 		return
 	}
 
@@ -234,7 +171,7 @@ func parseTaskID(r *http.Request) (int64, error) {
 	return id, nil
 }
 
-func decodeBody(r io.Reader, input *model.TaskInput) error {
+func decodeTaskInput(r io.Reader, input *model.TaskInput) error {
 	decoder := json.NewDecoder(r)
 	decoder.DisallowUnknownFields()
 
@@ -248,4 +185,27 @@ func decodeBody(r io.Reader, input *model.TaskInput) error {
 	}
 
 	return nil
+}
+
+func writeTaskServiceError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, model.ErrInvalidTask):
+		_ = writeJSONError(
+			w,
+			http.StatusUnprocessableEntity,
+			"unprocessable entity",
+		)
+	case errors.Is(err, model.ErrTaskNotFound):
+		_ = writeJSONError(
+			w,
+			http.StatusNotFound,
+			"task not found",
+		)
+	default:
+		_ = writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+	}
 }
