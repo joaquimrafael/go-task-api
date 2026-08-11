@@ -194,6 +194,38 @@ func (th *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	_ = writeJSON(w, http.StatusOK, task)
 }
 
+func (th *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := parseTaskID(r)
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"invalid task id",
+		)
+		return
+	}
+
+	err = th.service.Delete(r.Context(), id)
+	if errors.Is(err, model.ErrTaskNotFound) {
+		_ = writeJSONError(
+			w,
+			http.StatusNotFound,
+			"task not found",
+		)
+		return
+	}
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func parseTaskID(r *http.Request) (int64, error) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id <= 0 {
