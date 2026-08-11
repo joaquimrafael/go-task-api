@@ -3,8 +3,11 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/joaquimrafael/go-task-api/internal/model"
 	"github.com/joaquimrafael/go-task-api/internal/service"
@@ -66,4 +69,90 @@ func (th *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = writeJSON(w, http.StatusOK, tasks)
+}
+
+func (th *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var input model.TaskInput
+
+	err := decodeBody(r.Body, &input)
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"could not decode body",
+		)
+		return
+	}
+
+	task, err := th.service.Create(r.Context(), input)
+	if errors.Is(err, model.ErrInvalidTask) {
+		_ = writeJSONError(
+			w,
+			http.StatusUnprocessableEntity,
+			"unprocessable entity",
+		)
+		return
+	}
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+		return
+	}
+
+	_ = writeJSON(w, http.StatusCreated, task)
+}
+
+func (th *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	pathValue := r.PathValue("id")
+	id, err := strconv.ParseInt(pathValue, 10, 64)
+	if err != nil || id <= 0 {
+		_ = writeJSONError(
+			w,
+			http.StatusBadRequest,
+			"invalid task id",
+		)
+		return
+	}
+
+	task, err := th.service.GetByID(r.Context(), id)
+	if errors.Is(err, model.ErrTaskNotFound) {
+		_ = writeJSONError(
+			w,
+			http.StatusNotFound,
+			"task not found",
+		)
+		return
+	}
+	if err != nil {
+		_ = writeJSONError(
+			w,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+		return
+	}
+
+	_ = writeJSON(w, http.StatusOK, task)
+
+}
+
+func decodeBody(r io.Reader, input *model.TaskInput) error {
+	decoder := json.NewDecoder(r)
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(input); err != nil {
+		return err
+	}
+
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return errors.New("body must contain exactly one JSON object")
+	}
+
+	return nil
 }

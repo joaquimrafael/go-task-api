@@ -40,6 +40,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("GET /tasks", taskHandler.List)
+	mux.HandleFunc("GET /tasks/{id}", taskHandler.GetByID)
+	mux.HandleFunc("POST /tasks", taskHandler.Create)
 
 	server := &http.Server{
 		Addr:              ":8080",
