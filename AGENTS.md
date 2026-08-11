@@ -2,14 +2,15 @@
 
 ## Project Structure & Module Organization
 
-This repository contains a small Go REST API. The executable entry point is `cmd/api/main.go`; keep startup, routing, and dependency wiring there. HTTP handlers live under `internal/handler/`, which prevents them from being imported by unrelated modules. Add future domain logic in focused packages below `internal/` (for example, `internal/task/` or `internal/storage/`).
+This repository contains a small Go REST API. The executable entry point is `cmd/api/main.go`; keep startup, routing, and dependency wiring there. HTTP handlers live under `internal/handler/`, business rules under `internal/service/`, task types and domain errors under `internal/model/`, and SQLite access under `internal/repository/`.
 
-Place tests beside the code they exercise, using Go's `_test.go` suffix. The repository currently has no static assets or external configuration. Avoid committing generated binaries or local editor metadata.
+Place tests beside the code they exercise, using Go's `_test.go` suffix. The repository currently has no static assets or external configuration. Running the API creates a local `tasks.db` SQLite file. Avoid committing generated binaries, database files, or local editor metadata.
 
 ## Build, Test, and Development Commands
 
 - `go run ./cmd/api` starts the API locally on port `8080`.
-- `curl http://localhost:8080/hello` checks the current endpoint.
+- `curl http://localhost:8080/health` checks the server and database connection.
+- `curl http://localhost:8080/tasks` lists the currently stored tasks.
 - `go build ./...` compiles every package and catches build errors.
 - `go test ./...` runs all repository tests.
 - `go test -cover ./...` reports package-level test coverage.
@@ -34,14 +35,15 @@ This is a learning project. When assisting, explain the relevant concept, break 
 
 ## Current Implementation Progress
 
-- Phases 0-5 are complete. The task model exists, and `OpenSQLite` registers the pure-Go SQLite driver, limits the pool to one connection, verifies startup access with a timeout, and initializes the `tasks` schema.
+- Phases 0-7 are complete. The task model exists, and `OpenSQLite` registers the pure-Go SQLite driver, limits the pool to one connection, verifies startup access with a timeout, and initializes the `tasks` schema.
 - `SQLiteTaskRepository` implements create, list, retrieve, update, and delete with context-aware, parameterized SQL and not-found translation.
 - `TaskService` depends on its consumer-owned repository interface, validates and trims titles for create/update, delegates every operation, and preserves errors with `%w`. Domain sentinel errors intentionally live in `internal/model`.
-- `TaskHandler` depends on its own service interface and currently implements `GET /tasks`; shared helpers produce consistent JSON and JSON-error responses. The health handler pings the database with a request-derived two-second timeout.
-- `cmd/api/main.go` wires the database, repository, service, handlers, and Go 1.22 method-aware routes for `GET /health` and `GET /tasks`. It serves on `:8080` through an `http.Server` with read-header, read, write, and idle timeouts.
+- `TaskHandler` depends on its own consumer-owned service interface and implements list, retrieve, create, update, and delete. It strictly decodes exactly one JSON object, rejects unknown fields, parses positive path IDs through a shared helper, and maps validation, not-found, and unexpected errors to 422, 404, and 500 responses. Shared helpers produce consistent JSON and JSON-error responses. Successful deletion returns 204 without a body or JSON content type.
+- The health handler pings the database with a request-derived two-second timeout and returns 503 when the database is unavailable.
+- `cmd/api/main.go` wires the database, repository, service, handlers, and Go 1.22 method-aware routes for `GET /health`, `GET /tasks`, `GET /tasks/{id}`, `POST /tasks`, `PUT /tasks/{id}`, and `DELETE /tasks/{id}`. It serves on `:8080` through an `http.Server` with read-header, read, write, and idle timeouts.
 - Repository integration tests use temporary SQLite files and cover initialization, CRUD success and failure paths, ordering, constraints, and canceled contexts. `go test -race -cover ./internal/repository` passes with 88.4% statement coverage. Service and handler tests are intentionally deferred until the testing phase.
-- The phase 5 live checkpoint passes: `GET /health` returns `200` with `{"status":"ok"}`, and an empty `GET /tasks` returns `200` with `[]`.
-- Resume with phase 6 in `specs/go-task-api-sqlite-guide.html`: add `POST /tasks` and `GET /tasks/{id}`, strict JSON decoding, positive path-ID parsing, and the required 400/404/422/500 error mappings.
+- `go test ./...` passes. There are not yet automated service or handler tests.
+- Resume with phase 8 in `specs/go-task-api-sqlite-guide.html`: add table-driven service tests with a fake repository and handler tests with `httptest`, covering each endpoint's happy path and representative 400/404/422/500 failures.
 
 ## Target API Specification
 
