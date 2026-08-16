@@ -18,6 +18,7 @@ specs/                Detailed implementation guide
 ## Requirements
 
 - Go 1.26.4 or a compatible version declared in `go.mod`
+- Docker with Docker Compose, when running the containerized service
 
 ## Run locally
 
@@ -75,6 +76,38 @@ go run ./cmd/api
 
 Local `.env` files, `tasks.db`, and its `-shm` and `-wal` SQLite sidecar files
 are excluded from Git.
+
+## Run with Docker
+
+Build and start the API in the background:
+
+```bash
+docker compose up --build -d
+```
+
+Compose publishes the API at `http://localhost:8080` and stores SQLite data in
+the named `task-data` volume. Check the service and follow its logs with:
+
+```bash
+curl -i http://localhost:8080/health
+docker compose logs -f api
+```
+
+To use a different host port, set `API_PORT` for the Compose command:
+
+```bash
+API_PORT=9090 docker compose up --build -d
+```
+
+Stop the service without deleting its database:
+
+```bash
+docker compose down
+```
+
+The container listens on `:8080` internally and stores its database at
+`/data/tasks.db`. These container-specific values are set in `compose.yaml` and
+are independent of the values used by `go run`.
 
 ## API
 
