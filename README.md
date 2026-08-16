@@ -111,6 +111,5 @@ stack through a complete CRUD lifecycle.
 ## Current limitations
 
 The listen address and database path are currently fixed at `:8080` and
-`tasks.db`. Request logging, graceful SIGINT/SIGTERM shutdown, environment-based
-configuration, and generated SQLite-file ignore rules remain to be added in
-later phases of the implementation guide.
+`tasks.db`. Environment-based configuration and generated SQLite-file ignore
+rules remain to be added in the final phase of the implementation guide.

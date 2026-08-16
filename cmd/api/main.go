@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/joaquimrafael/go-task-api/internal/handler"
@@ -21,6 +26,47 @@ func newRouter(taskHandler *handler.TaskHandler, healthHandler http.HandlerFunc)
 	mux.HandleFunc("PUT /tasks/{id}", taskHandler.Update)
 	mux.HandleFunc("DELETE /tasks/{id}", taskHandler.Delete)
 	return mux
+}
+
+type apiServer interface {
+	ListenAndServe() error
+	Shutdown(context.Context) error
+}
+
+func serveUntilShutdown(
+	ctx context.Context,
+	server apiServer,
+	shutdownTimeout time.Duration,
+	logger *slog.Logger,
+) error {
+	serverErr := make(chan error, 1)
+
+	go func() {
+		serverErr <- server.ListenAndServe()
+	}()
+
+	select {
+	case <-ctx.Done():
+		logger.Info("shutdown signal received")
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("listen and serve: %w", err)
+		}
+		return nil
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("graceful shutdown: %w", err)
+	}
+
+	if err := <-serverErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("listen and serve after shutdown: %w", err)
+	}
+
+	return nil
 }
 
 func main() {
@@ -61,7 +107,15 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("serve API: %v", err)
+	signalCtx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+
+	defer stop()
+
+	if err := serveUntilShutdown(signalCtx, server, 5*time.Second, logger); err != nil {
+		log.Printf("serve API: %v", err)
 	}
 }

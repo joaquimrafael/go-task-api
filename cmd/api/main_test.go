@@ -2,14 +2,61 @@ package main
 
 import (
 	"context"
+	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/joaquimrafael/go-task-api/internal/handler"
 	"github.com/joaquimrafael/go-task-api/internal/model"
 )
+
+type fakeAPIServer struct {
+	listenStarted chan struct{}
+	listenRelease chan struct{}
+	releaseOnce   sync.Once
+	listenErr     error
+	shutdownErr   error
+
+	shutdownCalls       int
+	shutdownContextErr  error
+	shutdownDeadline    time.Time
+	shutdownHasDeadline bool
+}
+
+func newFakeAPIServer() *fakeAPIServer {
+	return &fakeAPIServer{
+		listenStarted: make(chan struct{}),
+		listenRelease: make(chan struct{}),
+	}
+}
+
+func (s *fakeAPIServer) ListenAndServe() error {
+	close(s.listenStarted)
+	<-s.listenRelease
+	return s.listenErr
+}
+
+func (s *fakeAPIServer) Shutdown(ctx context.Context) error {
+	s.shutdownCalls++
+	s.shutdownContextErr = ctx.Err()
+	s.shutdownDeadline, s.shutdownHasDeadline = ctx.Deadline()
+	s.releaseOnce.Do(func() { close(s.listenRelease) })
+	return s.shutdownErr
+}
+
+func (s *fakeAPIServer) finishServing() {
+	s.releaseOnce.Do(func() { close(s.listenRelease) })
+}
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 type recordingTaskService struct {
 	method string
@@ -199,4 +246,98 @@ func TestNewRouterRejectsUnmatchedRequests(t *testing.T) {
 
 func stringReader(value string) *strings.Reader {
 	return strings.NewReader(value)
+}
+
+func TestServeUntilShutdown(t *testing.T) {
+	server := newFakeAPIServer()
+	server.listenErr = http.ErrServerClosed
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+	shutdownTimeout := time.Second
+
+	go func() {
+		result <- serveUntilShutdown(ctx, server, shutdownTimeout, discardLogger())
+	}()
+
+	<-server.listenStarted
+	cancel()
+
+	if err := <-result; err != nil {
+		t.Fatalf("serveUntilShutdown() error = %v", err)
+	}
+	if server.shutdownCalls != 1 {
+		t.Errorf("Shutdown() calls = %d, want 1", server.shutdownCalls)
+	}
+	if server.shutdownContextErr != nil {
+		t.Errorf("Shutdown() context started cancelled: %v", server.shutdownContextErr)
+	}
+	if !server.shutdownHasDeadline {
+		t.Fatal("Shutdown() context has no deadline")
+	}
+	if remaining := time.Until(server.shutdownDeadline); remaining <= 0 || remaining > shutdownTimeout {
+		t.Errorf("Shutdown() deadline remaining = %v, want between 0 and %v", remaining, shutdownTimeout)
+	}
+}
+
+func TestServeUntilShutdownReturnsEarlyServerError(t *testing.T) {
+	wantErr := errors.New("address already in use")
+	server := newFakeAPIServer()
+	server.listenErr = wantErr
+	server.finishServing()
+
+	err := serveUntilShutdown(context.Background(), server, time.Second, discardLogger())
+
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("serveUntilShutdown() error = %v, want wrapped %v", err, wantErr)
+	}
+	if server.shutdownCalls != 0 {
+		t.Errorf("Shutdown() calls = %d, want 0", server.shutdownCalls)
+	}
+}
+
+func TestServeUntilShutdownTreatsEarlyServerClosedAsNormal(t *testing.T) {
+	server := newFakeAPIServer()
+	server.listenErr = http.ErrServerClosed
+	server.finishServing()
+
+	if err := serveUntilShutdown(context.Background(), server, time.Second, discardLogger()); err != nil {
+		t.Fatalf("serveUntilShutdown() error = %v, want nil", err)
+	}
+	if server.shutdownCalls != 0 {
+		t.Errorf("Shutdown() calls = %d, want 0", server.shutdownCalls)
+	}
+}
+
+func TestServeUntilShutdownReturnsShutdownError(t *testing.T) {
+	wantErr := errors.New("shutdown timed out")
+	server := newFakeAPIServer()
+	server.listenErr = http.ErrServerClosed
+	server.shutdownErr = wantErr
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := serveUntilShutdown(ctx, server, time.Second, discardLogger())
+
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("serveUntilShutdown() error = %v, want wrapped %v", err, wantErr)
+	}
+}
+
+func TestServeUntilShutdownReturnsServerErrorAfterShutdown(t *testing.T) {
+	wantErr := errors.New("unexpected serve failure")
+	server := newFakeAPIServer()
+	server.listenErr = wantErr
+	ctx, cancel := context.WithCancel(context.Background())
+	result := make(chan error, 1)
+
+	go func() {
+		result <- serveUntilShutdown(ctx, server, time.Second, discardLogger())
+	}()
+
+	<-server.listenStarted
+	cancel()
+
+	if err := <-result; !errors.Is(err, wantErr) {
+		t.Fatalf("serveUntilShutdown() error = %v, want wrapped %v", err, wantErr)
+	}
 }

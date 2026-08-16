@@ -18,6 +18,14 @@ func TestRequestLogger(t *testing.T) {
 		wantStatus int
 	}{
 		{
+			name:   "no explicit response",
+			method: http.MethodGet,
+			path:   "/health",
+			handler: http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+			}),
+			wantStatus: http.StatusOK,
+		},
+		{
 			name:   "implicit 200",
 			method: http.MethodGet,
 			path:   "/tasks",
@@ -91,5 +99,29 @@ func TestRequestLogger(t *testing.T) {
 				t.Error("log does not contain duration")
 			}
 		})
+	}
+}
+
+func TestStatusWriterKeepsFirstStatus(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	writer := &statusWriter{ResponseWriter: recorder}
+
+	writer.WriteHeader(http.StatusCreated)
+	writer.WriteHeader(http.StatusInternalServerError)
+
+	if writer.status != http.StatusCreated {
+		t.Errorf("captured status = %d, want %d", writer.status, http.StatusCreated)
+	}
+	if recorder.Code != http.StatusCreated {
+		t.Errorf("response status = %d, want %d", recorder.Code, http.StatusCreated)
+	}
+}
+
+func TestStatusWriterUnwrap(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	writer := &statusWriter{ResponseWriter: recorder}
+
+	if got := writer.Unwrap(); got != recorder {
+		t.Errorf("Unwrap() = %T, want original response writer", got)
 	}
 }
