@@ -9,6 +9,7 @@ import (
 	"github.com/joaquimrafael/go-task-api/internal/model"
 )
 
+// TaskRepository describes the persistence operations required by TaskService.
 type TaskRepository interface {
 	List(ctx context.Context) ([]model.Task, error)
 	GetByID(ctx context.Context, id int64) (*model.Task, error)
@@ -17,10 +18,12 @@ type TaskRepository interface {
 	Delete(ctx context.Context, id int64) error
 }
 
+// TaskService validates task input and coordinates persistence operations.
 type TaskService struct {
 	repository TaskRepository
 }
 
+// NewTaskService creates a TaskService backed by repository.
 func NewTaskService(repository TaskRepository) (*TaskService, error) {
 	if repository == nil {
 		return nil, fmt.Errorf("repository must not be nil")
@@ -45,6 +48,7 @@ func validateTitle(title string) (string, error) {
 	return title, nil
 }
 
+// Create validates input and creates a task.
 func (ts *TaskService) Create(ctx context.Context, input model.TaskInput) (*model.Task, error) {
 	title, err := validateTitle(input.Title)
 	if err != nil {
@@ -61,6 +65,7 @@ func (ts *TaskService) Create(ctx context.Context, input model.TaskInput) (*mode
 	return created, nil
 }
 
+// Update validates input and replaces a task's writable fields.
 func (ts *TaskService) Update(ctx context.Context, id int64, input model.TaskInput) (*model.Task, error) {
 	title, err := validateTitle(input.Title)
 	if err != nil {
@@ -82,6 +87,7 @@ func (ts *TaskService) Update(ctx context.Context, id int64, input model.TaskInp
 	return updated, nil
 }
 
+// GetByID retrieves a task by ID.
 func (ts *TaskService) GetByID(ctx context.Context, id int64) (*model.Task, error) {
 	task, err := ts.repository.GetByID(ctx, id)
 	if err != nil {
@@ -90,6 +96,7 @@ func (ts *TaskService) GetByID(ctx context.Context, id int64) (*model.Task, erro
 	return task, nil
 }
 
+// List retrieves all tasks.
 func (ts *TaskService) List(ctx context.Context) ([]model.Task, error) {
 	tasks, err := ts.repository.List(ctx)
 	if err != nil {
@@ -98,6 +105,7 @@ func (ts *TaskService) List(ctx context.Context) ([]model.Task, error) {
 	return tasks, nil
 }
 
+// Delete removes a task by ID.
 func (ts *TaskService) Delete(ctx context.Context, id int64) error {
 	if err := ts.repository.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete task %d: %w", id, err)

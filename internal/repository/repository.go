@@ -9,10 +9,12 @@ import (
 	"github.com/joaquimrafael/go-task-api/internal/model"
 )
 
+// SQLiteTaskRepository stores tasks in a SQLite database.
 type SQLiteTaskRepository struct {
 	db *sql.DB
 }
 
+// NewSQLiteTaskRepository creates a task repository using db.
 func NewSQLiteTaskRepository(db *sql.DB) (*SQLiteTaskRepository, error) {
 	if db == nil {
 		return nil, fmt.Errorf("sql.DB must not be nil")
@@ -20,6 +22,7 @@ func NewSQLiteTaskRepository(db *sql.DB) (*SQLiteTaskRepository, error) {
 	return &SQLiteTaskRepository{db: db}, nil
 }
 
+// Create inserts a task and returns its stored representation.
 func (r *SQLiteTaskRepository) Create(ctx context.Context, input model.TaskInput) (*model.Task, error) {
 	query := `INSERT INTO tasks (title, description, completed) VALUES (?, ?, ?)`
 
@@ -36,6 +39,7 @@ func (r *SQLiteTaskRepository) Create(ctx context.Context, input model.TaskInput
 	return r.GetByID(ctx, id)
 }
 
+// GetByID returns a task by ID or model.ErrTaskNotFound when it does not exist.
 func (r *SQLiteTaskRepository) GetByID(ctx context.Context, id int64) (*model.Task, error) {
 	query := `SELECT id, title, description, completed, created_at, updated_at FROM tasks WHERE id = ?;`
 	row := r.db.QueryRowContext(ctx, query, id)
@@ -58,6 +62,7 @@ func (r *SQLiteTaskRepository) GetByID(ctx context.Context, id int64) (*model.Ta
 	return task, nil
 }
 
+// List returns all tasks ordered by ID.
 func (r *SQLiteTaskRepository) List(ctx context.Context) ([]model.Task, error) {
 	query := `SELECT id, title, description, completed, created_at, updated_at FROM tasks ORDER BY id`
 	rows, err := r.db.QueryContext(ctx, query)
@@ -90,6 +95,7 @@ func (r *SQLiteTaskRepository) List(ctx context.Context) ([]model.Task, error) {
 	return tasks, nil
 }
 
+// Update replaces a task's writable fields and returns its stored representation.
 func (r *SQLiteTaskRepository) Update(ctx context.Context, task model.Task) (*model.Task, error) {
 	query := `
       UPDATE tasks
@@ -113,6 +119,7 @@ func (r *SQLiteTaskRepository) Update(ctx context.Context, task model.Task) (*mo
 	return r.GetByID(ctx, task.ID)
 }
 
+// Delete removes a task by ID or returns model.ErrTaskNotFound when it does not exist.
 func (r *SQLiteTaskRepository) Delete(ctx context.Context, id int64) error {
 	query := `DELETE FROM tasks WHERE id = ?`
 	result, err := r.db.ExecContext(ctx, query, id)

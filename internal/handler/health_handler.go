@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// DatabasePinger describes the database availability check required by the health handler.
 type DatabasePinger interface {
 	PingContext(ctx context.Context) error
 }
@@ -15,6 +16,7 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
+// NewHealthHandler returns a handler that reports whether the database is reachable.
 func NewHealthHandler(database DatabasePinger) (http.HandlerFunc, error) {
 	if database == nil {
 		return nil, fmt.Errorf("database must not be nil")

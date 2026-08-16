@@ -8,6 +8,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// OpenSQLite opens a single-connection SQLite database and initializes its task schema.
 func OpenSQLite(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

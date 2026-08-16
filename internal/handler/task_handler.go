@@ -18,6 +18,7 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+// TaskService describes the task operations required by TaskHandler.
 type TaskService interface {
 	List(ctx context.Context) ([]model.Task, error)
 	GetByID(ctx context.Context, id int64) (*model.Task, error)
@@ -43,10 +44,12 @@ func writeJSONError(w http.ResponseWriter, status int, message string) error {
 	})
 }
 
+// TaskHandler translates task HTTP requests and service results to JSON responses.
 type TaskHandler struct {
 	service TaskService
 }
 
+// NewTaskHandler creates a TaskHandler backed by service.
 func NewTaskHandler(service TaskService) (*TaskHandler, error) {
 	if service == nil {
 		return nil, fmt.Errorf("service must not be nil")
@@ -54,6 +57,7 @@ func NewTaskHandler(service TaskService) (*TaskHandler, error) {
 	return &TaskHandler{service: service}, nil
 }
 
+// List writes all tasks as a JSON array.
 func (th *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 	tasks, err := th.service.List(r.Context())
 	if err != nil {
@@ -68,6 +72,7 @@ func (th *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 	_ = writeJSON(w, http.StatusOK, tasks)
 }
 
+// Create decodes, validates, and creates a task from a JSON request body.
 func (th *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input model.TaskInput
 
@@ -90,6 +95,7 @@ func (th *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	_ = writeJSON(w, http.StatusCreated, task)
 }
 
+// GetByID writes the task identified by the request's id path value.
 func (th *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, err := parseTaskID(r)
 	if err != nil {
@@ -111,6 +117,7 @@ func (th *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// Update replaces the writable fields of the task identified by the request's id path value.
 func (th *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := parseTaskID(r)
 	if err != nil {
@@ -143,6 +150,7 @@ func (th *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	_ = writeJSON(w, http.StatusOK, task)
 }
 
+// Delete removes the task identified by the request's id path value.
 func (th *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := parseTaskID(r)
 	if err != nil {
