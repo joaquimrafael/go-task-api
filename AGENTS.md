@@ -4,7 +4,7 @@
 
 This repository contains a small Go REST API. The executable entry point is `cmd/api/main.go`; keep startup, routing, and dependency wiring there. HTTP handlers live under `internal/handler/`, business rules under `internal/service/`, task types and domain errors under `internal/model/`, and SQLite access under `internal/repository/`.
 
-Place tests beside the code they exercise, using Go's `_test.go` suffix. The repository currently has no static assets or external configuration. Running the API creates a local `tasks.db` SQLite file. Avoid committing generated binaries, database files, or local editor metadata.
+Place tests beside the code they exercise, using Go's `_test.go` suffix. Runtime configuration comes from `LISTEN_ADDR` and `DATABASE_PATH`, with local defaults. Running the API creates a local `tasks.db` SQLite file. `Dockerfile` and `compose.yaml` provide a containerized workflow with persistent SQLite storage. Avoid committing generated binaries, database files, local environment files, or editor metadata.
 
 ## Build, Test, and Development Commands
 
@@ -16,6 +16,8 @@ Place tests beside the code they exercise, using Go's `_test.go` suffix. The rep
 - `go test -cover ./...` reports package-level test coverage.
 - `go fmt ./...` applies standard Go formatting before review.
 - `go vet ./...` checks for suspicious constructs not caught by compilation.
+- `docker compose up --build -d` builds and starts the containerized API.
+- `docker compose down` stops the containerized API without deleting its database volume.
 
 ## Coding Style & Naming Conventions
 
@@ -35,20 +37,21 @@ This is a learning project. When assisting, explain the relevant concept, break 
 
 ## Current Implementation Progress
 
-- Phases 0-9 are complete. The task model exists, and `OpenSQLite` registers the pure-Go SQLite driver, limits the pool to one connection, verifies startup access with a timeout, and initializes the `tasks` schema.
+- Phases 0-10 are complete. The task model exists, and `OpenSQLite` registers the pure-Go SQLite driver, limits the pool to one connection, verifies startup access with a timeout, and initializes the `tasks` schema.
 - `SQLiteTaskRepository` implements create, list, retrieve, update, and delete with context-aware, parameterized SQL and not-found translation.
 - `TaskService` depends on its consumer-owned repository interface, validates and trims titles for create/update, delegates every operation, and preserves errors with `%w`. Domain sentinel errors intentionally live in `internal/model`.
 - `TaskHandler` depends on its own consumer-owned service interface and implements list, retrieve, create, update, and delete. It strictly decodes exactly one non-null JSON object, rejects unknown fields, parses positive path IDs through a shared helper, and maps validation, not-found, and unexpected errors to 422, 404, and 500 responses. Shared helpers produce consistent JSON and JSON-error responses. Successful deletion returns 204 without a body or JSON content type.
 - The health handler pings the database with a request-derived two-second timeout and returns 503 when the database is unavailable.
-- `cmd/api/main.go` wires the database, repository, service, handlers, and a JSON `slog` request logger. Its extracted `newRouter` function owns the Go 1.22 method-aware routes for `GET /health`, `GET /tasks`, `GET /tasks/{id}`, `POST /tasks`, `PUT /tasks/{id}`, and `DELETE /tasks/{id}`. The API serves on `:8080` through an `http.Server` with read-header, read, write, and idle timeouts.
+- `cmd/api/main.go` wires the database, repository, service, handlers, and a JSON `slog` request logger. Its extracted `newRouter` function owns the Go 1.22 method-aware routes for `GET /health`, `GET /tasks`, `GET /tasks/{id}`, `POST /tasks`, `PUT /tasks/{id}`, and `DELETE /tasks/{id}`. The API reads `LISTEN_ADDR` and `DATABASE_PATH` from the environment with `:8080` and `tasks.db` defaults, and its `http.Server` has read-header, read, write, and idle timeouts.
 - Phase 9 request logging and graceful shutdown are complete. `requestLogger` wraps the full router and logs method, path, captured response status, and duration. Its `statusWriter` handles explicit status codes, implicit and empty 200 responses, duplicate `WriteHeader` calls, and exposes the wrapped writer through `Unwrap`.
 - `main` uses `signal.NotifyContext` for SIGINT/SIGTERM and delegates the server lifecycle to the testable `serveUntilShutdown` helper. `ListenAndServe` runs concurrently, shutdown uses a fresh five-second timeout context, and `http.ErrServerClosed` is treated as an expected result. Manual CRUD, error-response, logging, and Ctrl+C shutdown checks pass.
 - Repository integration tests use temporary SQLite files and cover initialization, CRUD success and failure paths, ordering, constraints, and canceled contexts. Table-driven service tests use a fake repository, and public-package handler tests use `httptest.NewRecorder` with fake services to cover every endpoint's happy path and representative 400/404/422/500/503 failures. Router tests cover all registered routes plus 404 and 405 behavior.
 - A lightweight API integration test exercises the real router, handlers, service, repository, health check, and a temporary SQLite database through one complete CRUD lifecycle. It runs in-process without opening a network port.
 - Middleware tests capture and decode JSON log output for empty and body-writing 200 responses, explicit 201, and explicit 204 while verifying method, path, status, and duration fields. Lifecycle tests use a fake server to cover normal shutdown, fresh deadline contexts, early server failures, shutdown failures, and expected `http.ErrServerClosed` results.
 - `go test -race -cover ./...` passes with 87.6% overall statement coverage: `cmd/api` 63.3%, `internal/handler` 98.8%, `internal/repository` 88.4%, and `internal/service` 100.0%. `serveUntilShutdown` and every middleware function have 100% coverage. `go vet ./...` also passes.
-- Resume phase 10 in `specs/go-task-api-sqlite-guide.html`. Remaining final polish is environment-configurable listen/database paths, generated SQLite-file ignore rules, README updates as needed, and the final formatting, vet, race-test, and schema-recreation checks.
-- Optional TODO: document the application with short Go doc comments for packages and exported identifiers, focusing on purpose or behavior that is not already obvious from the code.
+- Phase 10 polish is complete: environment configuration has local defaults, generated SQLite files are ignored, the README documents local and containerized operation, and formatting, vet, race tests, and schema recreation checks pass.
+- Packages and exported identifiers have concise Go doc comments focused on their purpose and non-obvious behavior.
+- `Dockerfile` builds a static Linux binary in a multi-stage image and runs it as a non-root user. `compose.yaml` publishes the API, checks `/health`, and persists `/data/tasks.db` in the `task-data` volume. The static Linux build passes; a live Docker run remains environment-dependent because Docker is unavailable in the current workspace.
 
 ## Target API Specification
 

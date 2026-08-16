@@ -12,6 +12,8 @@ internal/handler/     HTTP handlers and JSON response helpers
 internal/model/       Task types and domain errors
 internal/repository/  SQLite setup and persistence
 internal/service/     Validation and business rules
+Dockerfile            Multi-stage container image definition
+compose.yaml          Local container startup and persistent data configuration
 specs/                Detailed implementation guide
 ```
 
