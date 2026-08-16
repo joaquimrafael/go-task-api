@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/joaquimrafael/go-task-api/internal/handler"
@@ -48,9 +50,11 @@ func main() {
 		log.Fatalf("create health handler: %v", err)
 	}
 
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	server := &http.Server{
 		Addr:              ":8080",
-		Handler:           newRouter(taskHandler, healthHandler),
+		Handler:           requestLogger(logger, newRouter(taskHandler, healthHandler)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
