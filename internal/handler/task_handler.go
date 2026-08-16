@@ -175,8 +175,13 @@ func decodeTaskInput(r io.Reader, input *model.TaskInput) error {
 	decoder := json.NewDecoder(r)
 	decoder.DisallowUnknownFields()
 
-	if err := decoder.Decode(input); err != nil {
+	var decoded *model.TaskInput
+	if err := decoder.Decode(&decoded); err != nil {
 		return err
+	}
+
+	if decoded == nil {
+		return errors.New("body must contain a JSON object")
 	}
 
 	var extra any
@@ -184,6 +189,7 @@ func decodeTaskInput(r io.Reader, input *model.TaskInput) error {
 		return errors.New("body must contain exactly one JSON object")
 	}
 
+	*input = *decoded
 	return nil
 }
 

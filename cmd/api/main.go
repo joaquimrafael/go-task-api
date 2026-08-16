@@ -10,6 +10,17 @@ import (
 	"github.com/joaquimrafael/go-task-api/internal/service"
 )
 
+func newRouter(taskHandler *handler.TaskHandler, healthHandler http.HandlerFunc) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /tasks", taskHandler.List)
+	mux.HandleFunc("GET /tasks/{id}", taskHandler.GetByID)
+	mux.HandleFunc("POST /tasks", taskHandler.Create)
+	mux.HandleFunc("PUT /tasks/{id}", taskHandler.Update)
+	mux.HandleFunc("DELETE /tasks/{id}", taskHandler.Delete)
+	return mux
+}
+
 func main() {
 	db, err := repository.OpenSQLite("tasks.db")
 	if err != nil {
@@ -37,17 +48,9 @@ func main() {
 		log.Fatalf("create health handler: %v", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", healthHandler)
-	mux.HandleFunc("GET /tasks", taskHandler.List)
-	mux.HandleFunc("GET /tasks/{id}", taskHandler.GetByID)
-	mux.HandleFunc("POST /tasks", taskHandler.Create)
-	mux.HandleFunc("PUT /tasks/{id}", taskHandler.Update)
-	mux.HandleFunc("DELETE /tasks/{id}", taskHandler.Delete)
-
 	server := &http.Server{
 		Addr:              ":8080",
-		Handler:           mux,
+		Handler:           newRouter(taskHandler, healthHandler),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
