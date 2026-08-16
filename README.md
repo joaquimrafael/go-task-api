@@ -102,13 +102,15 @@ go vet ./...   # Find common correctness issues
 go build ./... # Verify that all packages compile
 ```
 
-Repository integration tests use temporary SQLite databases and currently
-cover schema initialization and repository CRUD behavior. Service and handler
-tests are the next implementation phase.
+Repository integration tests use temporary SQLite databases and cover schema
+initialization and repository CRUD behavior. Table-driven service and handler
+tests cover validation, error mapping, context propagation, and every endpoint.
+A lightweight in-process API integration test exercises the real application
+stack through a complete CRUD lifecycle.
 
 ## Current limitations
 
 The listen address and database path are currently fixed at `:8080` and
 `tasks.db`. Request logging, graceful SIGINT/SIGTERM shutdown, environment-based
-configuration, and automated service and handler tests remain to be added in
+configuration, and generated SQLite-file ignore rules remain to be added in
 later phases of the implementation guide.
