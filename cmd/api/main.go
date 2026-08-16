@@ -69,8 +69,19 @@ func serveUntilShutdown(
 	return nil
 }
 
+func envOrDefault(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
 func main() {
-	db, err := repository.OpenSQLite("tasks.db")
+	listenAddr := envOrDefault("LISTEN_ADDR", ":8080")
+	databasePath := envOrDefault("DATABASE_PATH", "tasks.db")
+
+	db, err := repository.OpenSQLite(databasePath)
 	if err != nil {
 		log.Fatalf("could not open the database %v", err)
 	}
@@ -99,7 +110,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	server := &http.Server{
-		Addr:              ":8080",
+		Addr:              listenAddr,
 		Handler:           requestLogger(logger, newRouter(taskHandler, healthHandler)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,

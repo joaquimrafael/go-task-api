@@ -15,6 +15,9 @@ coverage.out
 # Temporary files created while developing
 /tmp/
 *.tmp
+tasks.db
+tasks.db-shm
+tasks.db-wal
 
 # Local environment values may contain secrets or machine-specific settings
 .env

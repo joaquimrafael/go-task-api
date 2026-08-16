@@ -40,6 +40,42 @@ Expected response:
 {"status":"ok"}
 ```
 
+## Configuration
+
+The API reads its listen address and SQLite database path from environment
+variables. Both are optional and have local development defaults:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LISTEN_ADDR` | `:8080` | Address and port used by the HTTP server |
+| `DATABASE_PATH` | `tasks.db` | Path to the SQLite database file |
+
+Set values for a single run:
+
+```bash
+LISTEN_ADDR=:9090 DATABASE_PATH=local.db go run ./cmd/api
+```
+
+Alternatively, create a local `.env` file:
+
+```dotenv
+LISTEN_ADDR=:9090
+DATABASE_PATH=local.db
+```
+
+Go does not load `.env` automatically, so export its values before starting the
+API:
+
+```bash
+set -a
+source .env
+set +a
+go run ./cmd/api
+```
+
+Local `.env` files, `tasks.db`, and its `-shm` and `-wal` SQLite sidecar files
+are excluded from Git.
+
 ## API
 
 | Method | Path | Success | Description |
@@ -107,9 +143,3 @@ initialization and repository CRUD behavior. Table-driven service and handler
 tests cover validation, error mapping, context propagation, and every endpoint.
 A lightweight in-process API integration test exercises the real application
 stack through a complete CRUD lifecycle.
-
-## Current limitations
-
-The listen address and database path are currently fixed at `:8080` and
-`tasks.db`. Environment-based configuration and generated SQLite-file ignore
-rules remain to be added in the final phase of the implementation guide.

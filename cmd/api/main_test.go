@@ -341,3 +341,36 @@ func TestServeUntilShutdownReturnsServerErrorAfterShutdown(t *testing.T) {
 		t.Fatalf("serveUntilShutdown() error = %v, want wrapped %v", err, wantErr)
 	}
 }
+
+func TestEnvOrDefault(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		fallback string
+		want     string
+	}{
+		{
+			name:     "uses environment value",
+			value:    "custom-value",
+			fallback: "default-value",
+			want:     "custom-value",
+		},
+		{
+			name:     "uses fallback when empty",
+			value:    "",
+			fallback: "default-value",
+			want:     "default-value",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("TEST_CONFIG", test.value)
+
+			got := envOrDefault("TEST_CONFIG", test.fallback)
+			if got != test.want {
+				t.Errorf("envOrDefault() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
